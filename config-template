@@ -1,0 +1,5 @@
+[Telegram]
+bot-token: <insert-bot-token>
+
+[Cookies]
+path-to-cookies: <path-to-cookies>

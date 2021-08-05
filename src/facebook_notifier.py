@@ -56,6 +56,37 @@ def add(update: Update, context: CallbackContext) -> None:
         context.bot.sendMessage(text=message, chat_id=update.effective_user.id)
 
 
+def remove(update: Update, context: CallbackContext) -> None:
+    username = update.effective_user.username
+    if username not in data:
+        context.bot.sendMessage(text="Please register first with /start!",
+                                chat_id=update.effective_user.id)
+        return
+    message = update.message.text.replace("/remove ", "")
+    if not message:
+        return
+    if message in data.get(username).ice_cream_flavors:
+        data.get(username).ice_cream_flavors.remove(message)
+        write_data_to_file(data)
+        context.bot.sendMessage(text="Removed {}".format(message),
+                                chat_id=update.effective_user.id)
+
+
+def list(update: Update, context: CallbackContext) -> None:
+    username = update.effective_user.username
+    if username not in data:
+        context.bot.sendMessage(text="Please register first with /start!",
+                                chat_id=update.effective_user.id)
+        return
+    if len(data.get(username).ice_cream_flavors) > 0:
+        message: str = ""
+        for flavor in data.get(username).ice_cream_flavors:
+            message += flavor + "\n"
+        context.bot.sendMessage(text=message, chat_id=update.effective_user.id)
+    else:
+        context.bot.sendMessage(text="Currently not watching any ice cream flavors", chat_id=update.effective_user.id)
+
+
 def get_update(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
@@ -81,6 +112,8 @@ def main() -> None:
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("add", add))
+    dispatcher.add_handler(CommandHandler("remove", remove))
+    dispatcher.add_handler(CommandHandler("list", list))
     dispatcher.add_handler(CommandHandler("configure", configure))
     dispatcher.add_handler(CommandHandler("update", get_update))
 

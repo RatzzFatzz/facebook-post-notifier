@@ -16,9 +16,19 @@ data: Dict[str, User] = read_data_from_file()
 config = configparser.ConfigParser()
 config.read("../config")
 
+help_message = "/start - Register yourself\n" \
+               "/configure <Lindenhof|Limburgerhof|both> - Choose which shop you want to be notified about\n" \
+               "/add <flavor> - Add a flavor to your watchlist\n" \
+               "/remove <flavor> - Remove a flavor from your watchlist\n" \
+               "/list - List your watchlist\n" \
+               "/update - Manually check if your flavors are available today\n" \
+               "\n" \
+               "/help - Get a list of all commands"
+
 
 def start(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
+    context.bot.sendMessage(text=help_message,chat_id=update.effective_user.id)
     if username in data:
         context.bot.sendMessage(text="You have already been registered. To change facebook page use /configure",
                                 chat_id=update.effective_user.id)
@@ -72,7 +82,7 @@ def remove(update: Update, context: CallbackContext) -> None:
                                 chat_id=update.effective_user.id)
 
 
-def list(update: Update, context: CallbackContext) -> None:
+def list_flavors(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
         context.bot.sendMessage(text="Please register first with /start!",
@@ -87,13 +97,17 @@ def list(update: Update, context: CallbackContext) -> None:
         context.bot.sendMessage(text="Currently not watching any ice cream flavors", chat_id=update.effective_user.id)
 
 
+def help(update: Update, context: CallbackContext) -> None:
+    context.bot.sendMessage(text=help_message, chat_id=update.effective_user.id)
+
+
 def get_update(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
         context.bot.sendMessage(text="Please register first with /start!",
                                 chat_id=update.effective_user.id)
         return
-    for post in get_posts(data.get(username).page_url, pages=1, cookies=config['Cookies']['path-to-cookies']):
+    for post in get_posts("eismanufakturzeitgeist", pages=1, cookies=config['Cookies']['path-to-cookies']):
         if post['time'].date() == date.today():
             for flavor in data.get(username).ice_cream_flavors:
                 if flavor in post['text']:
@@ -113,9 +127,10 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("add", add))
     dispatcher.add_handler(CommandHandler("remove", remove))
-    dispatcher.add_handler(CommandHandler("list", list))
+    dispatcher.add_handler(CommandHandler("list", list_flavors))
     dispatcher.add_handler(CommandHandler("configure", configure))
     dispatcher.add_handler(CommandHandler("update", get_update))
+    dispatcher.add_handler(CommandHandler("help", help))
 
 
     # on non command i.e message - echo the message on Telegram

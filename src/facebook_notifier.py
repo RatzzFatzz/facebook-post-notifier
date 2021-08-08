@@ -1,9 +1,15 @@
 import logging
-from datetime import date, datetime
-from typing import List, Dict
+import os
+import time
+from datetime import date
+import datetime
+from typing import Dict
 
 import configparser
+
+import pytz
 from facebook_scraper import get_posts
+from pytz import timezone
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 
@@ -99,6 +105,34 @@ def get_update(update: Update, context: CallbackContext) -> None:
                     context.bot.sendMessage(text=message, chat_id=update.effective_user.id)
 
 
+def start_notify(update: Update, context: CallbackContext) -> None:
+    username = update.effective_user.username
+    if username not in data:
+        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        return
+    time = datetime.time(10, 20, 00)
+    context.job_queue.run_daily(
+        callback=notify_job,
+        time=time,
+        days=tuple(range(7)),
+        context=update.message.chat_id)
+    context.bot.sendMessage(text="You'll get notified at {}.".format(time.isoformat(timespec="minutes")),
+                            chat_id=update.effective_user.id)
+
+
+def stop_notify(update: Update, context: CallbackContext) -> None:
+    username = update.effective_user.username
+    if username not in data:
+        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        return
+    context.job_queue.stop()
+    context.bot.sendMessage(text="You'll not get notified any longer.")
+
+
+def notify_job(context):
+    context.bot.send_message(chat_id=context.job.context, text="Some text!")
+
+
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
@@ -114,8 +148,11 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("list", list_flavors))
     dispatcher.add_handler(CommandHandler("configure", configure))
     dispatcher.add_handler(CommandHandler("update", get_update))
+    dispatcher.add_handler(CommandHandler("start_alarm", callback_timer, pass_job_queue=True))
+    dispatcher.add_handler(CommandHandler("stop_alarm", stop_timer, pass_job_queue=True))
+    dispatcher.add_handler(CommandHandler("start_notify", start_notify, pass_job_queue=True))
+    dispatcher.add_handler(CommandHandler("stop_notify", stop_notify, pass_job_queue=True))
     dispatcher.add_handler(CommandHandler("help", help))
-
 
     # on non command i.e message - echo the message on Telegram
     # dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))

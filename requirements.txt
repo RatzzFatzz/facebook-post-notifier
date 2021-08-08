@@ -1,3 +1,5 @@
 requests
 facebook-scraper
-configparser
+configparser~=5.0.2
+pytz~=2021.1
+python-telegram-bot

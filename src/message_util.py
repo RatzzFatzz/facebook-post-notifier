@@ -12,6 +12,8 @@ help_message = """
 /remove <flavor> - Remove a flavor from your watchlist\n
 /list - List your watchlist\n
 /update - Manually check if your flavors are available today\n
+/start_notify - Activates notifications (should be executed to get daily automated notifications)
+/stop_notify - Deactivates notifications
 \n
 /help - Get a list of all commands
 """

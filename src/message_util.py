@@ -1,20 +1,16 @@
-from typing import Dict
-
-from telegram import Update
-from telegram.ext import CallbackContext
-
-from src.user import User
 
 help_message = """
-/start - Register yourself\n
-/configure <Lindenhof|Limburgerhof|both> - Choose which shop you want to be notified about\n
-/add <flavor> - Add a flavor to your watchlist\n
-/remove <flavor> - Remove a flavor from your watchlist\n
-/list - List your watchlist\n
-/update - Manually check if your flavors are available today\n
+/start - Register yourself
+/configure <Lindenhof|Limburgerhof|both> - Choose which shop you want to be notified about
+
+/add <flavor> - Add a flavor to your watchlist
+/remove <flavor> - Remove a flavor from your watchlist
+/list - List your watchlist
+
+/update - Manually check if your flavors are available today
 /start_notify - Activates notifications (should be executed to get daily automated notifications)
 /stop_notify - Deactivates notifications
-\n
+
 /help - Get a list of all commands
 """
 

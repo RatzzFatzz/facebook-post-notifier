@@ -1,15 +1,10 @@
-import logging
-import os
-import time
-from datetime import date
+import configparser
 import datetime
+import logging
+import re
 from typing import Dict
 
-import configparser
-
-import pytz
 from facebook_scraper import get_posts
-from pytz import timezone
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 
@@ -23,6 +18,11 @@ data: Dict[str, User] = read_data_from_file()
 config = configparser.ConfigParser()
 config.read("../config")
 
+cache: Dict[str, any] = {
+    "cache_text": None,
+    "cache_date": None
+}
+
 
 def start(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
@@ -30,7 +30,7 @@ def start(update: Update, context: CallbackContext) -> None:
     if username in data:
         context.bot.sendMessage(text=message_util.already_registered, chat_id=update.effective_user.id)
     else:
-        context.bot.sendMessage(text=message_util.help_message,chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=message_util.help_message, chat_id=update.effective_user.id)
         data[username] = User(username=username, chat_id=chat_id)
         write_data_to_file(data)
         context.bot.sendMessage(text=message_util.successfully_registered, chat_id=update.effective_user.id)
@@ -41,7 +41,9 @@ def configure(update: Update, context: CallbackContext) -> None:
     if username not in data:
         context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
         return
-    token = update.message.text.replace("/configure ", "")
+    token = update.message.text.replace("/configure", "").lstrip()
+    if not token:
+        return
     data.get(username).page_url = token
     write_data_to_file(data)
     context.bot.sendMessage(text="Updated facebook page.", chat_id=update.effective_user.id)
@@ -52,8 +54,10 @@ def add(update: Update, context: CallbackContext) -> None:
     if username not in data:
         context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
         return
-    token = update.message.text.replace("/add ", "")
-    if token not in data.get(username).ice_cream_flavors:
+    token = update.message.text.replace("/add", "").lstrip()
+    if not token:
+        return
+    if token.casefold() not in (flavor.casefold for flavor in data.get(username).ice_cream_flavors):
         data.get(username).ice_cream_flavors.append(token)
         write_data_to_file(data)
         message = str("Now watching out for: {}").format(token)
@@ -65,10 +69,10 @@ def remove(update: Update, context: CallbackContext) -> None:
     if username not in data:
         context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
         return
-    message = update.message.text.replace("/remove ", "")
+    message = update.message.text.replace("/remove", "").lstrip()
     if not message:
         return
-    if message in data.get(username).ice_cream_flavors:
+    if message.casefold() not in (flavor.casefold for flavor in data.get(username).ice_cream_flavors):
         data.get(username).ice_cream_flavors.remove(message)
         write_data_to_file(data)
         context.bot.sendMessage(text="Removed {}".format(message), chat_id=update.effective_user.id)
@@ -97,12 +101,8 @@ def get_update(update: Update, context: CallbackContext) -> None:
     if username not in data:
         context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
         return
-    for post in get_posts("eismanufakturzeitgeist", pages=1, cookies=config['Cookies']['path-to-cookies']):
-        if post['time'].date() == date.today():
-            for flavor in data.get(username).ice_cream_flavors:
-                if flavor in post['text']:
-                    message = str("{} verfügbar").format(flavor)
-                    context.bot.sendMessage(text=message, chat_id=update.effective_user.id)
+    if get_available_message(username) is not None:
+        context.bot.sendMessage(chat_id=update.message.chat_id, text=get_available_message(username))
 
 
 def start_notify(update: Update, context: CallbackContext) -> None:
@@ -111,12 +111,14 @@ def start_notify(update: Update, context: CallbackContext) -> None:
         context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
         return
     time = datetime.time(10, 20, 00)
+    args = {"username": username,
+            "chat_id": update.message.chat_id}
     context.job_queue.run_daily(
         callback=notify_job,
         time=time,
         days=tuple(range(7)),
-        context=update.message.chat_id)
-    context.bot.sendMessage(text="You'll get notified at {}.".format(time.isoformat(timespec="minutes")),
+        context=args)
+    context.bot.sendMessage(text="You'll get notified at {} UTC.".format(time.isoformat(timespec="minutes")),
                             chat_id=update.effective_user.id)
 
 
@@ -130,7 +132,44 @@ def stop_notify(update: Update, context: CallbackContext) -> None:
 
 
 def notify_job(context):
-    context.bot.send_message(chat_id=context.job.context, text="Some text!")
+    if get_available_message(context.job.context.get("username")) is not None:
+        context.bot.sendMessage(chat_id=context.job.context.get("chat_id"),
+                                text=get_available_message(context.job.context.get("username")))
+
+
+def get_available_message(username: str) -> str or None:
+    if username not in data:
+        return None
+    post = get_post().casefold()
+    available_flavors: list[str] = list()
+    user: User = data.get(username)
+    for flavor in user.ice_cream_flavors:
+        if user.page_url.casefold() == "both".casefold():
+            if flavor.casefold() in post.casefold():
+                available_flavors.append(flavor)
+        elif "Lindenhof".casefold() == user.page_url.casefold() \
+                and flavor.casefold() in re.search("Lindenhof((?:.|\s)*?)Limburgerhof", post,
+                                                   flags=re.IGNORECASE).group(1) \
+                or "Limburgerhof".casefold() == user.page_url.casefold() \
+                and flavor.casefold() in re.search("Limburgerhof((?:.|\s)*?)$", post, flags=re.IGNORECASE).group(1):
+            available_flavors.append(flavor)
+
+    return "The following flavors are available today: {}".format(', '.join(available_flavors))
+
+
+def get_post() -> str:
+    date_today = datetime.date.today()
+    cache_date = cache["cache_date"]
+    cache_text = cache["cache_text"]
+    if cache_date is not None and cache_date == date_today:
+        return cache_text
+    else:
+        posts = get_posts("eismanufakturzeitgeist", pages=1, cookies=config['Cookies']['path-to-cookies'])
+        for post in posts:
+            if post['time'].date() == date_today:
+                cache["cache_text"] = post['text']
+                cache["cache_date"] = date_today
+                return cache["cache_text"]
 
 
 def main() -> None:
@@ -148,8 +187,6 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("list", list_flavors))
     dispatcher.add_handler(CommandHandler("configure", configure))
     dispatcher.add_handler(CommandHandler("update", get_update))
-    dispatcher.add_handler(CommandHandler("start_alarm", callback_timer, pass_job_queue=True))
-    dispatcher.add_handler(CommandHandler("stop_alarm", stop_timer, pass_job_queue=True))
     dispatcher.add_handler(CommandHandler("start_notify", start_notify, pass_job_queue=True))
     dispatcher.add_handler(CommandHandler("stop_notify", stop_notify, pass_job_queue=True))
     dispatcher.add_handler(CommandHandler("help", help))

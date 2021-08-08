@@ -11,6 +11,7 @@ def write_data_to_file(data: Dict[str, User]):
         file.write("\n")
     file.close()
 
+
 def read_data_from_file() -> Dict[str, User]:
     data: Dict[str, User] = {}
     with open("data.txt") as file:

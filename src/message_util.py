@@ -1,4 +1,3 @@
-
 help_message = """
 /start - Register yourself
 /configure <Lindenhof|Limburgerhof|both> - Choose which shop you want to be notified about

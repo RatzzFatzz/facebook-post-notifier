@@ -9,9 +9,10 @@ from facebook_scraper import get_posts
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 
-from src import message_util
-from src.persit_data import write_data_to_file, read_data_from_file
-from src.user import User
+from message_util import already_registered, help_message, successfully_registered, register_first, \
+    watching_no_flavors
+from persit_data import write_data_to_file, read_data_from_file
+from user import User
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -32,18 +33,18 @@ def start(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     chat_id = update.message.chat_id
     if username in data:
-        context.bot.sendMessage(text=message_util.already_registered, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=already_registered, chat_id=update.effective_user.id)
     else:
-        context.bot.sendMessage(text=message_util.help_message, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=help_message, chat_id=update.effective_user.id)
         data[username] = User(username=username)
         write_data_to_file(data)
-        context.bot.sendMessage(text=message_util.successfully_registered, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=successfully_registered, chat_id=update.effective_user.id)
 
 
 def configure(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
-        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=register_first, chat_id=update.effective_user.id)
         return
     token = update.message.text.replace("/configure", "").lstrip()
     if not token:
@@ -56,7 +57,7 @@ def configure(update: Update, context: CallbackContext) -> None:
 def add(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
-        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=register_first, chat_id=update.effective_user.id)
         return
     token = update.message.text.replace("/add", "").lstrip()
     if not token:
@@ -71,7 +72,7 @@ def add(update: Update, context: CallbackContext) -> None:
 def remove(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
-        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=register_first, chat_id=update.effective_user.id)
         return
     message = update.message.text.replace("/remove", "").lstrip()
     if not message:
@@ -85,7 +86,7 @@ def remove(update: Update, context: CallbackContext) -> None:
 def list_flavors(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
-        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=register_first, chat_id=update.effective_user.id)
         return
     if len(data.get(username).ice_cream_flavors) > 0:
         message: str = ""
@@ -93,17 +94,17 @@ def list_flavors(update: Update, context: CallbackContext) -> None:
             message += flavor + "\n"
         context.bot.sendMessage(text=message, chat_id=update.effective_user.id)
     else:
-        context.bot.sendMessage(text=message_util.watching_no_flavors, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=watching_no_flavors, chat_id=update.effective_user.id)
 
 
 def help(update: Update, context: CallbackContext) -> None:
-    context.bot.sendMessage(text=message_util.help_message, chat_id=update.effective_user.id)
+    context.bot.sendMessage(text=help_message, chat_id=update.effective_user.id)
 
 
 def get_update(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
-        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=register_first, chat_id=update.effective_user.id)
         return
     if get_available_message(username) is not None:
         context.bot.sendMessage(chat_id=update.message.chat_id, text=get_available_message(username))
@@ -112,7 +113,7 @@ def get_update(update: Update, context: CallbackContext) -> None:
 def start_notify(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
-        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=register_first, chat_id=update.effective_user.id)
         return
     if len(context.job_queue.get_jobs_by_name(username)) != 0:
         context.bot.sendMessage(chat_id=update.message.chat_id, text="Already subscribed to notifications.")
@@ -133,7 +134,7 @@ def start_notify(update: Update, context: CallbackContext) -> None:
 def stop_notify(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
     if username not in data:
-        context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
+        context.bot.sendMessage(text=register_first, chat_id=update.effective_user.id)
         return
     if len(context.job_queue.get_jobs_by_name(username)) == 0:
         context.bot.sendMessage(text="You are not subscribed to notifications yet.", chat_id=update.effective_user.id)

@@ -1,7 +1,7 @@
 import json
 from typing import Dict
 
-from src.user import User
+from user import User
 
 
 def write_data_to_file(data: Dict[str, User]):

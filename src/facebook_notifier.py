@@ -1,6 +1,7 @@
 import configparser
 import datetime
 import logging
+import os
 import re
 from typing import Dict
 
@@ -16,7 +17,10 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 data: Dict[str, User] = read_data_from_file()
 config = configparser.ConfigParser()
-config.read("../config")
+if os.path.isfile("/config/config") or os.path.isfile("../config"):
+    config.read("/config/config" if os.path.isfile("/config/config") else "../config")
+else:
+    logging.log(logging.ERROR, "Config is missing")
 
 cache: Dict[str, any] = {
     "cache_text": None,
@@ -31,7 +35,7 @@ def start(update: Update, context: CallbackContext) -> None:
         context.bot.sendMessage(text=message_util.already_registered, chat_id=update.effective_user.id)
     else:
         context.bot.sendMessage(text=message_util.help_message, chat_id=update.effective_user.id)
-        data[username] = User(username=username, chat_id=chat_id)
+        data[username] = User(username=username)
         write_data_to_file(data)
         context.bot.sendMessage(text=message_util.successfully_registered, chat_id=update.effective_user.id)
 
@@ -110,6 +114,9 @@ def start_notify(update: Update, context: CallbackContext) -> None:
     if username not in data:
         context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
         return
+    if len(context.job_queue.get_jobs_by_name(username)) != 0:
+        context.bot.sendMessage(chat_id=update.message.chat_id, text="Already subscribed to notifications.")
+        return
     time = datetime.time(10, 20, 00)
     args = {"username": username,
             "chat_id": update.message.chat_id}
@@ -117,7 +124,8 @@ def start_notify(update: Update, context: CallbackContext) -> None:
         callback=notify_job,
         time=time,
         days=tuple(range(7)),
-        context=args)
+        context=args,
+        name=username)
     context.bot.sendMessage(text="You'll get notified at {} UTC.".format(time.isoformat(timespec="minutes")),
                             chat_id=update.effective_user.id)
 
@@ -127,8 +135,11 @@ def stop_notify(update: Update, context: CallbackContext) -> None:
     if username not in data:
         context.bot.sendMessage(text=message_util.register_first, chat_id=update.effective_user.id)
         return
-    context.job_queue.stop()
-    context.bot.sendMessage(text="You'll not get notified any longer.")
+    if len(context.job_queue.get_jobs_by_name(username)) == 0:
+        context.bot.sendMessage(text="You are not subscribed to notifications yet.", chat_id=update.effective_user.id)
+        return
+    context.job_queue.get_jobs_by_name(username)[0].schedule_removal()
+    context.bot.sendMessage(text="You'll not get notified any longer.", chat_id=update.effective_user.id)
 
 
 def notify_job(context):
@@ -140,7 +151,7 @@ def notify_job(context):
 def get_available_message(username: str) -> str or None:
     if username not in data:
         return None
-    post = get_post().casefold()
+    post = get_post()
     available_flavors: list[str] = list()
     user: User = data.get(username)
     for flavor in user.ice_cream_flavors:
@@ -153,8 +164,8 @@ def get_available_message(username: str) -> str or None:
                 or "Limburgerhof".casefold() == user.page_url.casefold() \
                 and flavor.casefold() in re.search("Limburgerhof((?:.|\s)*?)$", post, flags=re.IGNORECASE).group(1):
             available_flavors.append(flavor)
-
-    return "The following flavors are available today: {}".format(', '.join(available_flavors))
+    if len(available_flavors) > 0:
+        return "The following flavors are available today: {}".format(', '.join(available_flavors))
 
 
 def get_post() -> str:
@@ -162,14 +173,14 @@ def get_post() -> str:
     cache_date = cache["cache_date"]
     cache_text = cache["cache_text"]
     if cache_date is not None and cache_date == date_today:
-        return cache_text
+        return cache_text.casefold()
     else:
         posts = get_posts("eismanufakturzeitgeist", pages=1, cookies=config['Cookies']['path-to-cookies'])
         for post in posts:
             if post['time'].date() == date_today:
                 cache["cache_text"] = post['text']
                 cache["cache_date"] = date_today
-                return cache["cache_text"]
+                return cache["cache_text"].casefold()
 
 
 def main() -> None:

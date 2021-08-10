@@ -5,6 +5,7 @@ help_message = """
 /add <flavor> - Add a flavor to your watchlist
 /remove <flavor> - Remove a flavor from your watchlist
 /list - List your watchlist
+/post - Get todays post message
 
 /update - Manually check if your flavors are available today
 /start_notify - Activates notifications (should be executed to get daily automated notifications)

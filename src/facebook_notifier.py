@@ -31,7 +31,6 @@ cache: Dict[str, any] = {
 
 def start(update: Update, context: CallbackContext) -> None:
     username = update.effective_user.username
-    chat_id = update.message.chat_id
     if username in data:
         context.bot.sendMessage(text=already_registered, chat_id=update.effective_user.id)
     else:
@@ -51,7 +50,7 @@ def configure(update: Update, context: CallbackContext) -> None:
         return
     data.get(username).page_url = token
     write_data_to_file(data)
-    context.bot.sendMessage(text="Updated facebook page.", chat_id=update.effective_user.id)
+    context.bot.sendMessage(text="Updated subscribed shop.", chat_id=update.effective_user.id)
 
 
 def add(update: Update, context: CallbackContext) -> None:
@@ -62,10 +61,10 @@ def add(update: Update, context: CallbackContext) -> None:
     token = update.message.text.replace("/add", "").lstrip()
     if not token:
         return
-    if token.casefold() not in (flavor.casefold for flavor in data.get(username).ice_cream_flavors):
-        data.get(username).ice_cream_flavors.append(token)
+    if token.lower() not in data.get(username).ice_cream_flavors:
+        data.get(username).ice_cream_flavors.append(token.lower())
         write_data_to_file(data)
-        message = str("Now watching out for: {}").format(token)
+        message = str("Now watching out for: {}").format(token.capitalize())
         context.bot.sendMessage(text=message, chat_id=update.effective_user.id)
 
 
@@ -77,10 +76,19 @@ def remove(update: Update, context: CallbackContext) -> None:
     message = update.message.text.replace("/remove", "").lstrip()
     if not message:
         return
-    if message.casefold() not in (flavor.casefold for flavor in data.get(username).ice_cream_flavors):
-        data.get(username).ice_cream_flavors.remove(message)
+    if message.lower() in data.get(username).ice_cream_flavors:
+        data.get(username).ice_cream_flavors.remove(message.lower())
         write_data_to_file(data)
-        context.bot.sendMessage(text="Removed {}".format(message), chat_id=update.effective_user.id)
+        context.bot.sendMessage(text="Removed {}".format(message.capitalize()), chat_id=update.effective_user.id)
+
+
+def post(update: Update, context: CallbackContext) -> None:
+    username = update.effective_user.username
+    if username not in data:
+        context.bot.sendMessage(text=register_first, chat_id=update.effective_user.id)
+        return
+    if get_post() is not None:
+        context.bot.sendMessage(text=get_post(), chat_id=update.effective_user.id)
 
 
 def list_flavors(update: Update, context: CallbackContext) -> None:
@@ -91,7 +99,7 @@ def list_flavors(update: Update, context: CallbackContext) -> None:
     if len(data.get(username).ice_cream_flavors) > 0:
         message: str = ""
         for flavor in data.get(username).ice_cream_flavors:
-            message += flavor + "\n"
+            message += flavor.capitalize() + "\n"
         context.bot.sendMessage(text=message, chat_id=update.effective_user.id)
     else:
         context.bot.sendMessage(text=watching_no_flavors, chat_id=update.effective_user.id)
@@ -199,6 +207,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("list", list_flavors))
     dispatcher.add_handler(CommandHandler("configure", configure))
     dispatcher.add_handler(CommandHandler("update", get_update))
+    dispatcher.add_handler(CommandHandler("post", post))
     dispatcher.add_handler(CommandHandler("start_notify", start_notify, pass_job_queue=True))
     dispatcher.add_handler(CommandHandler("stop_notify", stop_notify, pass_job_queue=True))
     dispatcher.add_handler(CommandHandler("help", help))

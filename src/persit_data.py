@@ -15,7 +15,7 @@ def write_data_to_file(data: Dict[str, User]):
 def read_data_from_file() -> Dict[str, User]:
     data: Dict[str, User] = {}
     with open("data.txt") as file:
-        users: list(User) = list()
+        users: list[User] = list()
         for line in file:
             users.append(json.loads(line, object_hook=lambda d: User(**d)))
             for user in users:

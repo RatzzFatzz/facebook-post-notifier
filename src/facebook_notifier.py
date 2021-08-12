@@ -11,7 +11,7 @@ from telegram.ext import Updater, CommandHandler, CallbackContext
 
 from message_util import already_registered, help_message, successfully_registered, register_first, \
     watching_no_flavors
-from persit_data import write_data_to_file, read_data_from_file
+from persist_data import write_data_to_file, read_data_from_file
 from user import User
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)

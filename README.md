@@ -3,9 +3,11 @@
 [dockerhub]: https://hub.docker.com/r/ratzzfatzz/zeitgeist-notifier
 [license]: https://github.com/RatzzFatzz/zeitgeist-notifier/blob/master/LICENSE
 [licenseImg]: https://img.shields.io/github/license/RatzzFatzz/zeitgeist-notifier.svg
-
+[zeitgeistPage]: https://www.facebook.com/eismanufakturzeitgeist/
 
 [![ciImg]][ci] [![licenseImg]][license]
+
+This bot collects data from the facebook page of [Zeitgeist][zeitgeistPage] and makes it accessible through telegram.
 
 # Features:
 - Automated notification if desired ice cream flavors are available today
@@ -27,12 +29,13 @@ zeitgeist_notifier_config/
 ├── config
 ├── cookie
 └── data
-
 ```
+
 ## Run docker
 ```
 docker run --name zeitgeist-notifier <path-to-config-dir>:/config ratzzfatzz/zeitgeist-notifier:latest
 ```
+
 ## Docker-compose
 ```
 version: "3.6"
